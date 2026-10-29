@@ -1,0 +1,283 @@
+---
+title: "603_Final_project_check_in_2"
+Authors: 'Nachiket Kadkol, Niranjan Prakash'
+Date: "19th April, 2025"
+format: 
+  html:
+    embed-resources: true
+    code-fold: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+## Research Question and Hypothesis
+
+**Research Question:** What factors contribute to freelancer success on different platforms?
+
+```{r Imports and Data Reading}
+
+library(tidyverse)
+library(patchwork)
+library(ggplot2)
+library(corrplot)
+library(texreg)
+
+freelance_raw <- read_csv("C:\\Users\\Nachiket\\freelancer_earnings_bd.csv")
+```
+
+**Background**
+
+The gig economy has expanded rapidly, with freelance platforms offering diverse opportunities for independent workers. Understanding the drivers of freelancer success is critical for both platforms and freelancers themselves. By identifying the variables most associated with high earnings, we can better inform strategic decisions, platform policies, and personal development paths for freelancers.
+
+**Theory**
+
+Freelancer success can be influenced by multiple factors including skill level, geographic reach, and platform-specific advantages. Previous research has highlighted the importance of marketing efforts, client engagement, and experience in shaping earnings outcomes. Building on this, we explore whether investment in marketing serves as a key differentiator in earnings potential.
+
+**Hypothesis:**
+
+*Higher marketing spend* is positively associated with *freelancer earnings*.
+
+## Exploratory Data Analysis:
+
+```{r EDA-Data_Overview}
+
+dim(freelance_raw) 
+summary(freelance_raw)
+colSums(is.na(freelance_raw)) # no NA's in dataset
+```
+
+The dataset contains 1,950 observations and 15 variables, capturing a range of freelancer characteristics and performance indicators. Importantly, there are no missing values, which allows for straightforward analysis without the need for imputation or data cleaning at this stage. Variables in the dataset are:
+
+| Variable Name | Description | Data Type |
+|------------------------|------------------------|------------------------|
+| Freelancer_ID | Unique identifier for freelancer. | double |
+| Job_Category | Primary classification of freelance work performed | character |
+| Platform | Freelance marketplace where work was performed | character |
+| Experience_Level | Freelancers professional experience tier | character |
+| Client_Region | Geographical location of client | character |
+| Payment_Method | Method used for financial transactions | character |
+| Job_Completed | Number of projects sucessfuly completed | double |
+| Earnings_USD | Total earnings in US Dollars | double |
+| Hourly_Rate | Freelancer's hourly compensation rate in USD | double |
+| Job_Success_Rate | Percentage of successful job completions | double |
+| Client_Rating | Average rating given by clients ( 1- 5 scale, 5 good, 1 bad) | double |
+| Job_Duration_Days | Average project timeline in days | double |
+| Project_Type | Classification of work arrangement | character |
+| Rehire_Rate | Percentage of clients who rehire the freelancer | double |
+| Marketing_Spend | Amount invested in platform in USD | double |
+
+## Univariate Analysis
+
+```{r EDA Univariate_Analysis}
+# numeric variables 
+numeric_vars <- c("Earnings_USD", "Job_Completed", "Hourly_Rate", 
+                  "Job_Success_Rate", "Client_Rating", "Job_Duration_Days", 
+                  "Rehire_Rate", "Marketing_Spend")
+# Check variance of each numeric variable
+plots_numeric <- lapply(numeric_vars, function(var) {
+  ggplot(freelance_raw, aes_string(var)) +
+    geom_histogram(fill = "skyblue", bins = 30) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggtitle(paste("Distribution of ", var)) +
+    theme(plot.title = element_text(size = 9, hjust = 0.5))
+})
+wrap_plots(plots_numeric, ncol = 4)+ plot_layout(guides = "collect", heights = rep(1, 2))
+
+
+
+#categorical variables
+categorical_vars <- c("Platform", "Job_Category", "Experience_Level", 
+                      "Client_Region", "Payment_Method", "Project_Type")
+
+# Create plots
+plots_categorical <- lapply(categorical_vars, function(var) {
+  ggplot(freelance_raw, aes_string(var)) +
+    geom_bar(fill = "tomato") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggtitle(paste("Distribution of", var))
+})
+
+# Combine using patchwork
+wrap_plots(plots_categorical, ncol = 3)
+
+```
+
+On looking through the distributions of the numeric variables, we initially considered a log transformation for Earnings but as the distribution does not have a heavy tail on either side we decided that it was unnecessary. Similarly none of our other numeric variables are showcasing a heavy skew to either side so we decided to not use a log transformation on any of them.
+
+When we look at the distribution of our categorical variables, there are no clear outliers. In terms of platform, Upwork shows to have the most number of users but very marginally. Among Job catgories done by freelancers, graphic design among freelancers seems to be most common. Not much variance between amount of beginner, intermediate and expert level freelancers. The most common payment method is cyrpto by a very small margin and the majority of freelancers seem to take on fixed contract type projects compared to hourly basis contracts.
+
+## Bivariate Analysis
+
+```{r EDA_Bivariate_Analysis}
+#bivariate analysis 
+# Select only numeric columns
+num_data <- freelance_raw[sapply(freelance_raw, is.numeric)]
+cor_matrix <- cor(num_data, use = "complete.obs")
+# Correlation matrix
+col <- colorRampPalette(c("#2166AC", "#F7F7F7", "#B2182B"))(200)
+corrplot(cor_matrix,
+         method = "color",
+         type = "upper",
+         col = col,
+         tl.col = "black",
+         tl.srt = 45,         
+         number.cex = 0.7)
+
+# earnings vs other variables 
+for (var in setdiff(numeric_vars, "Earnings_USD")) {
+  print(
+    ggplot(freelance_raw, aes_string(x = var, y = "Earnings_USD")) +
+      geom_point(alpha = 0.6) +
+      geom_smooth(method = "lm", se = FALSE, color = "darkgreen") +
+      ggtitle(paste("Earnings vs", var))
+  )
+}
+
+# earnings by category 
+for (var in categorical_vars) {
+  print(
+    ggplot(freelance_raw, aes_string(x = var, y = "Earnings_USD")) +
+      geom_boxplot(fill = "goldenrod") +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+      ggtitle(paste("Earnings by", var))
+  )
+}
+
+```
+
+For the Bivariate analysis: From our initial correlation heatmap we see that the variables here do not show strong correlations with each other i.e there is no fear of multi colinearity.
+
+When looking at the distributions of earnings vs the other numeric variables we aren't able to observe any clear trends which most of the scatter plots not showing any clear trends. The graph for Earnings_USD vs Marketing_Spend however is indicating a slight positive association b/w the variables as indicated by slight upward slope and slight positive corelation.
+
+When we look through our boxplots for our categorical variables we notice some trends when looking at earnings across platforms with Freelancer having the largest Inter quartile range but there is not much variance when looking at the avg earning of a freelancer on any platform. When looking at Earnings across Job_category we see that SEO and Web developers have a slighlty lower mean earning compared to all other categories, with the highest avg earning job looking to be Graphic Design. When looking at earnings across experience level we notice that Intermediate experience level appear to have the highes mean earnings which is odd, would have expected experienced people to have the highest avg earnings. Not too many trends when looking at earnings across client region and payment type.
+
+## Data Transformation
+
+```{r Data_Transformation}
+
+# creating an interaction term: Marketing success which is a product of marketing spend and job success rate 
+
+freelance_req <- freelance_raw |> 
+  mutate(marketing_success = Marketing_Spend * Job_Success_Rate)
+
+#transforming categorical variables into factors. 
+freelance_req <- freelance_req %>% 
+  mutate(
+    Platform = as.factor(Platform),
+    Experience_Level = as.factor(Experience_Level),
+    Client_Region = as.factor(Client_Region),
+    Payment_Method = as.factor(Payment_Method),
+    Project_Type = as.factor(Project_Type)
+  )
+```
+
+The data transformation steps involved here are:
+
+-   Creation of an Interaction term: marketing_success which is the product of marketing spend and job success rate.
+
+-   Converting the categorical variables from character type to factor type for suitable input for regression.
+
+## Model Building
+
+```{r Model_Building}
+
+# Model 1: Key IV and DV only 
+
+mod1 <- lm(Earnings_USD ~ Marketing_Spend , data = freelance_req)
+
+# model 2: Adding in all numeric variables exculding interaction term.
+mod2 <- lm(Earnings_USD ~ Marketing_Spend + Rehire_Rate + Job_Success_Rate+ Hourly_Rate+ Client_Rating+ Job_Completed + Job_Duration_Days, data = freelance_req)
+
+
+# Model 3: All numeric variables including interaction term.
+mod3 <- lm(Earnings_USD ~ Marketing_Spend + Rehire_Rate + Job_Success_Rate+ Hourly_Rate+ Client_Rating+ Job_Completed + Job_Duration_Days + marketing_success, data = freelance_req)
+
+# Model 4: Including in all numeric and categorical variables. 
+mod4 <- lm(Earnings_USD ~ Marketing_Spend + Rehire_Rate + Job_Success_Rate + Hourly_Rate + Client_Rating + Job_Completed + Job_Duration_Days + Platform + Experience_Level + Client_Region + Payment_Method + Project_Type, data = freelance_req)
+
+# Model 5: All numeric variables, categorical variables and interaction term. 
+mod5 <- lm(Earnings_USD ~ Marketing_Spend + Rehire_Rate + Job_Success_Rate + Hourly_Rate + Client_Rating + Job_Completed + Job_Duration_Days + Platform + Experience_Level + Client_Region + Payment_Method + Project_Type + marketing_success, data = freelance_req)
+
+
+# storing a model list
+model_list <- list(mod1,mod2,mod3,mod4, mod5)
+```
+
+## Model Interpretations
+
+```{r Model_Interpretations}
+screenreg(model_list)
+```
+
+To assess the relationship between marketing spend and freelancer earnings, we estimated a series of linear regression models with increasing complexity.
+
+Model 1 includes only the key explanatory variable, Marketing_Spend.
+
+Model 2 adds in all the numeric control variables.
+
+Model 3 expands the model to include the interaction term, marketing success, which showed a slight positive association with Earnings with a significant p value but the overall R\^2 is still not explaining a lot of the variance.
+
+Model 4 incorporates platform, experience level, client region, payment method, and project type as categorical variables for a more comprehensive view.
+
+Model 5 is the complete model with all numeric variables, categorical variables and the interaction term.
+
+**Key Findings:**
+
+Marketing_Spend is positively associated with Earnings across all models. In Model 4, for example, each unit increase in marketing spend is associated with an approximate \$0.94 increase in earnings, holding other variables constant. While the effect size is modest, the consistency across models suggests a robust relationship.
+
+Rehire_Rate has a small, negative but non-significant relationship with earnings.
+
+Client_Rating and Hourly_Rate appear positively associated with earnings in Model 3 and 4.
+
+Platform dummies in Model 4 (e.g., PlatformFreelancer, PlatformFiverr) show varying effects, but none are statistically significant, implying no strong difference in earnings by platform after accounting for other variables.
+
+Experience_Level_Intermediate is associated with \$313.59 higher earnings compared to the base category, with marginal significance but exp_level\_ expert is negatively correlated with earnings ( not significant) which is odd.
+
+Geographic and payment method variables do not show significant effects, though some coefficients are substantial in magnitude, such as Client_RegionUSA and Client_RegionMiddle East.
+
+**Takeaway:**
+
+The results provide moderate evidence in support of the hypothesis: marketing spend is positively and significantly related to freelancer earnings, and this relationship holds even after controlling for freelancer characteristics, job metrics, and platform-level differences.
+
+## Diagnostics and Conclusion
+
+```{r Model_Diagnostics}
+
+#model diagnostics 
+
+#model 1: only IV and DV
+par(mfrow = c(2, 2))
+plot(mod1)
+
+#model2: Numeric Control model
+par(mfrow = c(2,2))
+plot(mod2)
+
+# model 3: Interaction term: Marketing Sucess
+par(mfrow = c(2,2))
+plot(mod3)
+
+# model 4: Full control Model
+par(mfrow = c(2,2))
+plot(mod4)
+
+# R^2 not changing much from model to model, using AIC/BIC to compare model performance. 
+AIC(mod1, mod2, mod3, mod4)
+BIC(mod1, mod2, mod3, mod4)
+```
+
+**Conclusion**: This project explored the relationship between marketing spend and freelancer earnings using regression analysis. We began with a clearly stated hypothesis — that higher marketing spend would be positively associated with increased earnings.
+
+We first conducted exploratory data analysis and checked for variable variance and distribution characteristics. We chose not to log-transform earnings due to its uniform distribution and proceeded to build a series of regression models.
+
+Model 1 established a baseline relationship between marketing spend and earnings, showing a weak but positive association. Subsequent models numerical control variables, while Model 3 incorporated an interaction term to capture marketing success and the final model included all the variables including the categorical control variables.
+
+Throughout these models, the coefficient for Marketing_Spend remained consistently positive and became statistically significant once control variables were added.
+
+Although R² values across all models remained extremely low, suggesting that the models explain very little of the variation in earnings, AIC/BIC comparisons provided a clearer picture. Model had the lowest AIC and BIC, indicating the best balance of fit and simplicity.
+
+Regression diagnostics revealed generally acceptable model assumptions — no major violations in linearity, homoscedasticity, or influence. However, residuals in most models did not follow a perfectly normal distribution, which may affect inference reliability.
+
+**Final takeaway**: The hypothesis is modestly supported. While marketing spend is positively and significantly associated with earnings when controls are included, the relationship is weak, and most of the variation in freelancer earnings remains unexplained by these models. Future research might explore non-linear models or richer feature sets (e.g., text analysis of job descriptions or freelancer profiles) to improve predictive power.
