@@ -64,4 +64,4 @@ quarto render 603_final_project.qmd
 
 ## Authors
 
-Nachiket Kadkol and Niranjan Prakash
+Nachiketh Kadkol and Niranjan Prakash
